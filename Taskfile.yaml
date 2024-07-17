@@ -1,0 +1,21 @@
+version: 3
+
+tasks:
+  test-day-*:
+    vars:
+      DAY: "{{index .MATCH 0}}"
+    cmds:
+      - odin test day{{.DAY}} -out:bin/day{{.DAY}}.bin -o:none -debug
+
+  run-day-*:
+    vars:
+      DAY: "{{index .MATCH 0}}"
+    cmds:
+      - odin run day{{.DAY}}
+
+  debug-day-*:
+    vars:
+      DAY: "{{index .MATCH 0}}"
+    cmds:
+      - gdb bin/day{{.DAY}}.bin
+    silent: true
