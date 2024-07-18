@@ -73,11 +73,11 @@ process_line :: proc(line: ^[dynamic]rune) -> int {
 
 		if low == 0 {
 			low = value
-			log.infof("New low: %i", low)
+			// log.infof("New low: %i", low)
 		} else if high == 0 || i > high_index {
 			high = value
 			high_index = i
-			log.infof("New high: %i, index: %i", high, high_index)
+			// log.infof("New high: %i, index: %i", high, high_index)
 		}
 	}
 	return (low * 10) + (high_index == 0 ? low : high)
@@ -90,7 +90,7 @@ decode :: proc(stream: ^io.Stream) -> (sum: int, err: io.Error) {
 		eof = consume_line(stream, &line_buffer) or_return
 		value := process_line(&line_buffer)
 		sum += value
-		log.infof("Computed value %i", value)
+		// log.infof("Computed value %i", value)
 	}
 	return sum, nil
 }
