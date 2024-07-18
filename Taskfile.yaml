@@ -11,7 +11,7 @@ tasks:
     vars:
       DAY: "{{index .MATCH 0}}"
     cmds:
-      - odin run day{{.DAY}}
+      - odin run day{{.DAY}} -out:bin/day{{.DAY}}.bin
 
   debug-day-*:
     vars:
