@@ -141,10 +141,10 @@ collect_data :: proc(str: ^string) -> (sum: int) {
 		if !ok do break
 		switch token.token_type {
 		case .Symbol:
-			// Check numbers in the non_adjacent array for adjacency
-			// If adjacent, add to adjacent array, remove from non_adjacent
 			// Add to symbols array
 			append(&symbols, token)
+			// Check numbers in the islands array for adjacency
+			// If adjacent, remove from islands
 			#reverse for &num, index in islands {
 				if is_adjacent(&token, &num) {
 					sum += strconv.atoi(num.literal)
@@ -153,8 +153,6 @@ collect_data :: proc(str: ^string) -> (sum: int) {
 			}
 		case .Number:
 			// Check symbols in the symbols array for adjacency 
-			// If adjacent, add to adjacent array 
-			// else, add to non_adjacent array 
 			prev_sum := sum
 			for &sym in symbols {
 				if is_adjacent(&sym, &token) {
@@ -162,6 +160,7 @@ collect_data :: proc(str: ^string) -> (sum: int) {
 					break
 				}
 			}
+			// If not adjacent to any symbol, add to islands array
 			if sum == prev_sum do append(&islands, token)
 		case .Invalid:
 			panic(fmt.tprintfln("Unexpected end of token stream with %v", token))
