@@ -47,10 +47,9 @@ advance :: proc(cursor: ^Cursor, input: ^string) {
 }
 
 skip_while :: proc(cursor: ^Cursor, input: ^string, cond: proc(r: rune) -> bool) {
-	if !cond(cursor.current_rune) do return
 	for cursor.index < len(input) {
-		advance(cursor, input)
 		if !cond(cursor.current_rune) do return
+		advance(cursor, input)
 	}
 }
 
