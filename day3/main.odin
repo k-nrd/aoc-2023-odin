@@ -139,7 +139,6 @@ collect_data :: proc(str: ^string) -> (sum: int) {
 	for {
 		token, ok := consume_token(&cursor, str)
 		if !ok do break
-		log.debugf("%v", token)
 		switch token.token_type {
 		case .Symbol:
 			// Check numbers in the non_adjacent array for adjacency
@@ -167,20 +166,14 @@ collect_data :: proc(str: ^string) -> (sum: int) {
 		case .Invalid:
 			panic(fmt.tprintfln("Unexpected end of token stream with %v", token))
 		}
-		log.debugf("Sum: %i", sum)
 	}
 
-	log.debugf("Sum: %i", sum)
-	log.debugf("Symbols: %v", symbols)
-	log.debugf("Non adjacent: %v", islands)
 	return
 }
 
 decode :: proc(filepath: string) -> int {
 	data, ok := os.read_entire_file(filepath)
-	if !ok {
-		panic(fmt.tprintfln("Could not read file %s", filepath))
-	}
+	if !ok do panic(fmt.tprintfln("Could not read file %s", filepath))
 	it := string(data)
 	log.debugf("Schematics: \n%s", it)
 	return collect_data(&it)
