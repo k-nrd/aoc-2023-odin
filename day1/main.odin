@@ -2,7 +2,6 @@ package main
 
 import "core:fmt"
 import "core:io"
-import "core:log"
 import "core:os"
 import "core:strings"
 import "core:testing"
