@@ -90,6 +90,7 @@ consume_token :: proc(cursor: ^Cursor, input: ^string) -> (Token, bool) {
 			}
 		})
 		token.end = create_loc(cursor)
+		token.end.col -= 1 // Cursor is already 1 column ahead of us
 		token.literal = input[token.start.index:token.end.index]
 	case '*', '#', '+', '$', '@', '=', '&', '%', '/', '-':
 		token.token_type = .Symbol
@@ -114,15 +115,15 @@ is_adjacent :: proc(tok1: ^Token, tok2: ^Token) -> bool {
 	col_ok := dim_ok(tok1.start.col, tok2.start.col)
 	if tok1.end.line != 0 {
 		line_ok = line_ok || dim_ok(tok1.end.line, tok2.start.line)
-		col_ok = col_ok || dim_ok(tok1.end.col - 1, tok2.start.col)
+		col_ok = col_ok || dim_ok(tok1.end.col, tok2.start.col)
 	}
 	if tok2.end.line != 0 {
 		line_ok = line_ok || dim_ok(tok1.start.line, tok2.end.line)
-		col_ok = col_ok || dim_ok(tok1.start.col, tok2.end.col - 1)
+		col_ok = col_ok || dim_ok(tok1.start.col, tok2.end.col)
 	}
 	if tok1.end.line != 0 && tok2.end.line != 0 {
 		line_ok = line_ok || dim_ok(tok1.end.line, tok2.end.line)
-		col_ok = col_ok || dim_ok(tok1.end.col - 1, tok2.end.col - 1)
+		col_ok = col_ok || dim_ok(tok1.end.col, tok2.end.col)
 	}
 	return line_ok && col_ok
 }
