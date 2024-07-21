@@ -13,6 +13,12 @@ tasks:
     cmds:
       - odin run day{{.DAY}} -out:bin/day{{.DAY}}.bin
 
+  build-day-*:
+    vars:
+      DAY: "{{index .MATCH 0}}"
+    cmds:
+      - odin build day{{.DAY}} -out:bin/day{{.DAY}}.bin -o:speed
+
   debug-day-*:
     vars:
       DAY: "{{index .MATCH 0}}"

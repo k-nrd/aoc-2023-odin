@@ -35,6 +35,22 @@ Cursor :: struct {
 	current_rune: rune,
 }
 
+create_loc :: proc(cursor: ^Cursor) -> Loc {
+	return Loc{index = cursor.index, line = cursor.line, col = cursor.col}
+}
+
+create_token :: proc(cursor: ^Cursor) -> Token {
+	return Token{token_type = .Invalid, start = create_loc(cursor)}
+}
+
+create_cursor :: proc(input: ^string) -> Cursor {
+	return Cursor {
+		line = 1,
+		col = 1,
+		current_rune = len(input) == 0 ? utf8.RUNE_EOF : utf8.rune_at(input^, 0),
+	}
+}
+
 advance :: proc(cursor: ^Cursor, input: ^string) {
 	cursor.index += utf8.rune_size(cursor.current_rune)
 	cursor.col += 1
@@ -50,22 +66,6 @@ skip_while :: proc(cursor: ^Cursor, input: ^string, cond: proc(r: rune) -> bool)
 	for cursor.index < len(input) {
 		if !cond(cursor.current_rune) do return
 		advance(cursor, input)
-	}
-}
-
-create_loc :: proc(cursor: ^Cursor) -> Loc {
-	return Loc{index = cursor.index, line = cursor.line, col = cursor.col}
-}
-
-create_token :: proc(cursor: ^Cursor) -> Token {
-	return Token{token_type = .Invalid, start = create_loc(cursor)}
-}
-
-create_cursor :: proc(input: ^string) -> Cursor {
-	return Cursor {
-		line = 1,
-		col = 1,
-		current_rune = len(input) == 0 ? utf8.RUNE_EOF : utf8.rune_at(input^, 0),
 	}
 }
 
@@ -109,22 +109,18 @@ is_adjacent :: proc(tok1: ^Token, tok2: ^Token) -> bool {
 	}
 	// Starting or ending line is either the same or 1 above or 1 below 
 	// of the other token's starting or ending line
-	line_ok := dim_ok(tok1.start.line, tok2.start.line)
+	line_ok :=
+		dim_ok(tok1.start.line, tok2.start.line) ||
+		(tok1.end.line != 0 && dim_ok(tok1.end.line, tok2.start.line)) ||
+		(tok2.end.line != 0 && dim_ok(tok1.start.line, tok2.end.line)) ||
+		(tok1.end.line != 0 && tok2.end.line != 0 && dim_ok(tok1.end.line, tok2.end.line))
 	// Starting or ending column is either the same or 1 to the left or 1 to the right
 	// of the other token's starting or ending column
-	col_ok := dim_ok(tok1.start.col, tok2.start.col)
-	if tok1.end.line != 0 {
-		line_ok = line_ok || dim_ok(tok1.end.line, tok2.start.line)
-		col_ok = col_ok || dim_ok(tok1.end.col, tok2.start.col)
-	}
-	if tok2.end.line != 0 {
-		line_ok = line_ok || dim_ok(tok1.start.line, tok2.end.line)
-		col_ok = col_ok || dim_ok(tok1.start.col, tok2.end.col)
-	}
-	if tok1.end.line != 0 && tok2.end.line != 0 {
-		line_ok = line_ok || dim_ok(tok1.end.line, tok2.end.line)
-		col_ok = col_ok || dim_ok(tok1.end.col, tok2.end.col)
-	}
+	col_ok :=
+		dim_ok(tok1.start.col, tok2.start.col) ||
+		(tok1.end.line != 0 && dim_ok(tok1.end.col, tok2.start.col)) ||
+		(tok2.end.line != 0 && dim_ok(tok1.start.col, tok2.end.col)) ||
+		(tok1.end.line != 0 && tok2.end.line != 0 && dim_ok(tok1.end.col, tok2.end.col))
 	return line_ok && col_ok
 }
 
@@ -134,36 +130,27 @@ collect_data :: proc(str: ^string) -> (sum: int) {
 	cursor := create_cursor(str)
 
 	symbols := make([dynamic]Token)
-	islands := make([dynamic]Token)
+	numbers := make([dynamic]Token)
 
-	for {
-		token, ok := consume_token(&cursor, str)
-		if !ok do break
+	for token in consume_token(&cursor, str) {
 		switch token.token_type {
 		case .Symbol:
-			// Add to symbols array
 			append(&symbols, token)
-			// Check numbers in the islands array for adjacency
-			// If adjacent, remove from islands
-			#reverse for &num, index in islands {
-				if is_adjacent(&token, &num) {
-					sum += strconv.atoi(num.literal)
-					unordered_remove(&islands, index)
-				}
-			}
 		case .Number:
-			// Check symbols in the symbols array for adjacency 
-			prev_sum := sum
-			for &sym in symbols {
-				if is_adjacent(&sym, &token) {
-					sum += strconv.atoi(token.literal)
-					break
-				}
-			}
-			// If not adjacent to any symbol, add to islands array
-			if sum == prev_sum do append(&islands, token)
+			append(&numbers, token)
 		case .Invalid:
 			panic(fmt.tprintfln("Unexpected end of token stream with %v", token))
+		}
+	}
+
+	// Part 1 
+	// Check numbers in the islands array for adjacency
+	// If adjacent, remove from islands
+	for &sym in symbols {
+		#reverse for &num, index in numbers {
+			if !is_adjacent(&sym, &num) do continue
+			sum += strconv.atoi(num.literal)
+			unordered_remove(&numbers, index)
 		}
 	}
 
@@ -178,9 +165,10 @@ decode :: proc(filepath: string) -> int {
 	return collect_data(&it)
 }
 
+buf := [1 << 20]byte{}
+
 main :: proc() {
 	arena := mem.Arena{}
-	buf := [1 << 18]byte{}
 	mem.arena_init(&arena, buf[:])
 
 	context.logger = log.create_console_logger(lowest = log.Level.Debug)
