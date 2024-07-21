@@ -7,6 +7,11 @@ import "core:os"
 import "core:strconv"
 import "core:unicode/utf8"
 
+Mode :: enum {
+	Parts,
+	Gears,
+}
+
 Loc :: struct {
 	index: int,
 	line:  int,
@@ -124,7 +129,7 @@ is_adjacent :: proc(tok1: ^Token, tok2: ^Token) -> bool {
 	return line_ok && col_ok
 }
 
-collect_data :: proc(str: ^string) -> (sum: int) {
+collect_data :: proc(str: ^string, mode: Mode) -> (sum: int) {
 	// Cursor is already primed with the first rune
 	// If the length of the input is 0, then that rune will be EOF
 	cursor := create_cursor(str)
@@ -135,7 +140,8 @@ collect_data :: proc(str: ^string) -> (sum: int) {
 	for token in consume_token(&cursor, str) {
 		switch token.token_type {
 		case .Symbol:
-			append(&symbols, token)
+			if mode == .Parts do append(&symbols, token)
+			else if mode == .Gears && token.literal == "*" do append(&symbols, token)
 		case .Number:
 			append(&numbers, token)
 		case .Invalid:
@@ -143,38 +149,59 @@ collect_data :: proc(str: ^string) -> (sum: int) {
 		}
 	}
 
-	// Part 1 
-	// Check numbers in the islands array for adjacency
-	// If adjacent, remove from islands
 	for &sym in symbols {
-		#reverse for &num, index in numbers {
-			if !is_adjacent(&sym, &num) do continue
-			sum += strconv.atoi(num.literal)
-			unordered_remove(&numbers, index)
+		switch mode {
+		case .Parts:
+			// Part 1 
+			// Check numbers in the islands array for adjacency
+			// If adjacent, remove from islands
+			#reverse for &num, index in numbers {
+				if !is_adjacent(&sym, &num) do continue
+				sum += strconv.atoi(num.literal)
+				unordered_remove(&numbers, index)
+			}
+		case .Gears:
+			num1, num2 := 0, 0
+			for &num in numbers {
+				if !is_adjacent(&sym, &num) do continue
+				if num1 == 0 {
+					// 1 adjacent
+					num1 = strconv.atoi(num.literal)
+				} else if num2 == 0 {
+					// 2 adjacent
+					num2 = strconv.atoi(num.literal)
+				} else {
+					// more than 2 adjacent
+					num1 = 0
+					num2 = 0
+				}
+			}
+			sum += num1 * num2
 		}
 	}
 
 	return
 }
 
-decode :: proc(filepath: string) -> int {
+decode :: proc(filepath: string, mode: Mode) -> int {
 	data, ok := os.read_entire_file(filepath)
 	if !ok do panic(fmt.tprintfln("Could not read file %s", filepath))
 	it := string(data)
 	log.debugf("Schematics: \n%s", it)
-	return collect_data(&it)
+	return collect_data(&it, mode)
 }
 
+// 1Mb
 buf := [1 << 20]byte{}
 
 main :: proc() {
-	arena := mem.Arena{}
+	arena: mem.Arena
 	mem.arena_init(&arena, buf[:])
 
 	context.logger = log.create_console_logger(lowest = log.Level.Debug)
 	context.allocator = mem.arena_allocator(&arena)
 
-	result := decode("./day3/input.txt")
+	result := decode("./day3/input.txt", .Gears)
 	log.debugf("Result: %i", result)
 
 	mem.free_all()
